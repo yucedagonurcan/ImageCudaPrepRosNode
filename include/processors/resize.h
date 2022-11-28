@@ -21,47 +21,50 @@ namespace ips{
   class ImageResizer: public ImageProcessing{
 
    public:
-    ImageResizer(const int dstW, const int dstH) {
+    ImageResizer(const int srcW, const int srcH, const int dstW, const int dstH) {
+
+      m_srcW = srcW;
+      m_srcH = srcH;
+
       m_dstW = dstW;
       m_dstH = dstH;
 
       m_dstSize.width = m_dstW;
       m_dstSize.height = m_dstH;
 
+      m_dstSize.width = m_srcW;
+      m_dstSize.height = m_srcH;
+
       m_dstROI = {0, 0, m_dstW, m_dstH};
     }
 
-    bool m_Run(void **src, void **dst, int  std::string encoding) {
-      if (!m_InitialMember(srcMsg))
+    bool m_Run(void **src, void **dst, std::string encoding) {
+
+      if (  encoding != "rgb8"   &&
+            encoding != "rgb16"  &&
+            encoding != "rgba8"  &&
+            encoding != "rgba16" &&
+            encoding != "bgr8"   &&
+            encoding != "bgr16"  &&
+            encoding != "bgra8"  &&
+            encoding != "bgra16" &&
+            encoding != "mono8"  &&
+            encoding != "mono16" ){
+
+        ROS_ERROR("[ImageResize] %s is invalid encoding format! Not supported encoding type.", encoding.c_str());
         return false;
-
-      std::vector<uint8_t> resizedImage(m_dstStep * m_dstH, 0);
-
-      {
-        void *srcImage = nullptr, *dstImage = nullptr;
-
-        if (!m_Processing(&srcImage, &dstImage)) return false;
-
-        if (CheckCUDA(
-                 cudaMemcpy2D(&resizedImage[0], m_dstW * m_srcChannelNum,
-                               dstImage, m_dstStep,
-                               m_dstW * m_srcChannelNum, m_dstH, cudaMemcpyDeviceToHost),
-                 "cudaMemcpy2D") != 0) return false;
-
-        nppiFree(srcImage);
-        nppiFree(dstImage);
       }
 
-      {
-        dstMsg.header.frame_id = srcMsg.header.frame_id;
-        dstMsg.width = m_dstW;
-        dstMsg.height = m_dstH;
-        dstMsg.step = m_dstStep;
-        dstMsg.encoding = "rgb8";
-        dstMsg.is_bigendian = srcMsg.is_bigendian;
+      m_srcROI = {0, 0, m_srcW, m_srcH};
 
-        dstMsg.data = std::move(resizedImage);
-      }
+      m_srcEncoding = encoding;
+      m_srcChannelNum = sensor_msgs::image_encodings::numChannels(m_srcEncoding);
+
+      m_srcStep = m_srcW * m_srcChannelNum;
+      m_dstStep = m_dstW * m_srcChannelNum;
+
+      if (!m_Processing(src, dst)) return false;
+
 
       return true;
     };
@@ -125,8 +128,7 @@ namespace ips{
            srcMsg.encoding != "bgra8"  &&
            srcMsg.encoding != "bgra16" &&
            srcMsg.encoding != "mono8"  &&
-           srcMsg.encoding != "mono16" &&
-           srcMsg.encoding != "bayer_rggb8"){
+           srcMsg.encoding != "mono16" ){
 
         ROS_ERROR("[ImageResize] %s is invalid encoding format! Not supported encoding type.", srcMsg.encoding.c_str());
         return false;
