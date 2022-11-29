@@ -15,221 +15,106 @@
 #include "../ErrorCheck.h"
 
 #include <npp.h>
+#include "alloc_utils.h"
 
 namespace ips{
 
-  class ImageResizer: public ImageProcessing{
+  class Resizer: public ImageProcessing{
 
    public:
-    ImageResizer(const int srcW, const int srcH, const int dstW, const int dstH) {
+    Resizer(const ImageInfo& src_info, const ImageInfo& dst_info) {
 
-      m_srcW = srcW;
-      m_srcH = srcH;
+      src_info_ = src_info;
+      dst_info_ = dst_info;
 
-      m_dstW = dstW;
-      m_dstH = dstH;
+      m_srcROI = {0, 0, src_info_.width, src_info_.height};
+      m_srcSize = { src_info_.width, src_info_.height };
 
-      m_dstSize.width = m_dstW;
-      m_dstSize.height = m_dstH;
+      m_dstSize = { dst_info_.width, dst_info_.height };
+      m_dstROI = {0, 0, dst_info_.width, dst_info_.height};
 
-      m_dstSize.width = m_srcW;
-      m_dstSize.height = m_srcH;
-
-      m_dstROI = {0, 0, m_dstW, m_dstH};
     }
 
-    bool m_Run(void **src, void **dst, std::string encoding) {
 
-      if (  encoding != "rgb8"   &&
-            encoding != "rgb16"  &&
-            encoding != "rgba8"  &&
-            encoding != "rgba16" &&
-            encoding != "bgr8"   &&
-            encoding != "bgr16"  &&
-            encoding != "bgra8"  &&
-            encoding != "bgra16" &&
-            encoding != "mono8"  &&
-            encoding != "mono16" ){
+    bool validateProcessor() override{
 
-        ROS_ERROR("[ImageResize] %s is invalid encoding format! Not supported encoding type.", encoding.c_str());
+      if(src_info_.encoding != dst_info_.encoding){
+        ROS_ERROR("[Resizer] IN[%s] and OUT[%s] encoding is not compatible for `Resizer`.", src_info_.encoding.c_str(), dst_info_.encoding.c_str());
         return false;
       }
 
-      m_srcROI = {0, 0, m_srcW, m_srcH};
+      if ( src_info_.encoding != "rgb8"   &&
+           src_info_.encoding != "rgb16"  &&
+           src_info_.encoding != "rgba8"  &&
+           src_info_.encoding != "rgba16" &&
+           src_info_.encoding != "bgr8"   &&
+           src_info_.encoding != "bgr16"  &&
+           src_info_.encoding != "bgra8"  &&
+           src_info_.encoding != "bgra16" &&
+           src_info_.encoding != "mono8"  &&
+           src_info_.encoding != "mono16"){
 
-      m_srcEncoding = encoding;
-      m_srcChannelNum = sensor_msgs::image_encodings::numChannels(m_srcEncoding);
-
-      m_srcStep = m_srcW * m_srcChannelNum;
-      m_dstStep = m_dstW * m_srcChannelNum;
-
-      if (!m_Processing(src, dst)) return false;
-
-
-      return true;
-    };
-
-    bool m_Run(const sensor_msgs::Image &srcMsg, sensor_msgs::Image &dstMsg) {
-      if (!m_InitialMember(srcMsg))
+        ROS_ERROR("[Resizer] %s is invalid encoding format! Not supported encoding type.", src_info_.encoding.c_str());
         return false;
-
-      std::vector<uint8_t> resizedImage(m_dstStep * m_dstH, 0);
-
-      {
-        void *srcImage = nullptr, *dstImage = nullptr;
-
-        if (!m_CudaAllocation(&srcImage, &dstImage)) return false;
-
-        if (CheckCUDA(
-                 cudaMemcpy2D(srcImage, m_srcStep,
-                               &srcMsg.data[0], m_srcStep,
-                               m_srcW * m_srcChannelNum, m_srcH, cudaMemcpyHostToDevice),
-                 "cudaMemcpy2D") != 0) return false;
-
-        if (!m_Processing(&srcImage, &dstImage)) return false;
-
-        if (CheckCUDA(
-                 cudaMemcpy2D(&resizedImage[0], m_dstW * m_srcChannelNum,
-                               dstImage, m_dstStep,
-                               m_dstW * m_srcChannelNum, m_dstH, cudaMemcpyDeviceToHost),
-                 "cudaMemcpy2D") != 0) return false;
-
-        nppiFree(srcImage);
-        nppiFree(dstImage);
       }
+    }
 
-      {
-        dstMsg.header.frame_id = srcMsg.header.frame_id;
-        dstMsg.width = m_dstW;
-        dstMsg.height = m_dstH;
-        dstMsg.step = m_dstStep;
-        dstMsg.encoding = "rgb8";
-        dstMsg.is_bigendian = srcMsg.is_bigendian;
-
-        dstMsg.data = std::move(resizedImage);
+    bool m_Run(void** srcImage, void** dstImage) {
+      if(validateProcessor()){
+        ROS_ERROR("There is an error in validation of `Resizer` processor");
+        exit(1);
       }
-
+      if (!m_Processing(srcImage, dstImage)) return false;
       return true;
-    };
+    }
 
    protected:
-    virtual bool m_InitialMember(const sensor_msgs::Image &srcMsg) {
-      if ((srcMsg.width < 0) || (srcMsg.height < 0)){
-        ROS_ERROR("[ImageResize] Unvalid image size. check your image.");
-        return false;
-      }
 
-      if (srcMsg.encoding != "rgb8"   &&
-           srcMsg.encoding != "rgb16"  &&
-           srcMsg.encoding != "rgba8"  &&
-           srcMsg.encoding != "rgba16" &&
-           srcMsg.encoding != "bgr8"   &&
-           srcMsg.encoding != "bgr16"  &&
-           srcMsg.encoding != "bgra8"  &&
-           srcMsg.encoding != "bgra16" &&
-           srcMsg.encoding != "mono8"  &&
-           srcMsg.encoding != "mono16" ){
-
-        ROS_ERROR("[ImageResize] %s is invalid encoding format! Not supported encoding type.", srcMsg.encoding.c_str());
-        return false;
-      }
-
-      m_srcW = srcMsg.width;
-      m_srcH = srcMsg.height;
-      m_srcSize.width = srcMsg.width;
-      m_srcSize.height = srcMsg.height;
-      m_srcROI = {0, 0, m_srcW, m_srcH};
-
-      m_srcEncoding = srcMsg.encoding;
-      m_srcChannelNum = sensor_msgs::image_encodings::numChannels(m_srcEncoding);
-
-      m_srcStep = m_srcW * m_srcChannelNum;
-      m_dstStep = m_dstW * m_srcChannelNum;
-
-      return true;
-    };
-
-    virtual bool m_CudaAllocation(void **src, void **dst) {
-      int srcStep, dstStep;
-
-      if (m_srcEncoding == "mono8"){
-        *src = nppiMalloc_8u_C1(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_8u_C1(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else if (m_srcEncoding == "mono16"){
-        *src = nppiMalloc_16u_C1(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_16u_C1(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else if (m_srcEncoding == "rgb8" || m_srcEncoding == "bgr8"){
-        *src = nppiMalloc_8u_C3(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_8u_C3(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else if (m_srcEncoding == "rgb16" || m_srcEncoding == "bgr16"){
-        *src = nppiMalloc_16u_C3(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_16u_C3(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else if (m_srcEncoding == "rgba8" || m_srcEncoding == "bgra8"){
-        *src = nppiMalloc_8u_C4(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_8u_C4(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else if (m_srcEncoding == "rgba16" || m_srcEncoding == "bgra16"){
-        *src = nppiMalloc_16u_C4(m_srcW, m_srcH, &srcStep);
-        *dst = nppiMalloc_16u_C4(m_dstW, m_dstH, &dstStep);
-        return true;
-      }
-      else
-        return false;
-    };
     virtual bool m_Processing(void **src, void **dst) {
-      if (m_srcEncoding == "mono8"){
+      if (src_info_.encoding == "mono8"){
         if (CheckNPP(
-                 nppiResize_8u_C1R((Npp8u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                    (Npp8u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_8u_C1R((Npp8u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                    (Npp8u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_8u_C1R") != 0) return false;
 
         return true;
       }
-      else if (m_srcEncoding == "mono16"){
+      else if (src_info_.encoding == "mono16"){
         if (CheckNPP(
-                 nppiResize_16u_C1R((Npp16u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                     (Npp16u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_16u_C1R((Npp16u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                     (Npp16u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_16u_C1R") != 0) return false;
 
         return true;
       }
-      else if (m_srcEncoding == "rgb8" || m_srcEncoding == "bgr8"){
+      else if (src_info_.encoding == "rgb8" || src_info_.encoding == "bgr8"){
         if (CheckNPP(
-                 nppiResize_8u_C3R((Npp8u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                    (Npp8u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_8u_C3R((Npp8u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                    (Npp8u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_8u_C3R") != 0) return false;
 
         return true;
       }
-      else if (m_srcEncoding == "rgb16" || m_srcEncoding == "bgr16"){
+      else if (src_info_.encoding == "rgb16" || src_info_.encoding == "bgr16"){
         if (CheckNPP(
-                 nppiResize_16u_C3R((Npp16u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                     (Npp16u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_16u_C3R((Npp16u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                     (Npp16u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_16u_C3R") != 0) return false;
 
         return true;
       }
-      else if (m_srcEncoding == "rgba8" || m_srcEncoding == "bgra8"){
+      else if (src_info_.encoding == "rgba8" || src_info_.encoding == "bgra8"){
         if (CheckNPP(
-                 nppiResize_8u_C4R((Npp8u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                    (Npp8u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_8u_C4R((Npp8u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                    (Npp8u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_8u_C4R") != 0) return false;
 
         return true;
       }
-      else if (m_srcEncoding == "rgba16" || m_srcEncoding == "bgra16"){
+      else if (src_info_.encoding == "rgba16" || src_info_.encoding == "bgra16"){
         if (CheckNPP(
-                 nppiResize_16u_C4R((Npp16u *)*src, m_srcStep, m_srcSize, m_srcROI,
-                                     (Npp16u *)*dst, m_dstStep, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
+                 nppiResize_16u_C4R((Npp16u *)*src, src_info_.step, m_srcSize, m_srcROI,
+                                     (Npp16u *)*dst, dst_info_.step, m_dstSize, m_dstROI, NPPI_INTER_LINEAR),
                  "nppiResize_16u_C4R") != 0) return false;
 
         return true;
