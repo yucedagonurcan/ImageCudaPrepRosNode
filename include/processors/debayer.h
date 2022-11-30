@@ -21,6 +21,7 @@ namespace ips{
   class Debayer: public ImageProcessing{
 
    public:
+
     Debayer(const ImageInfo& src_info, const ImageInfo& dst_info) {
 
       src_info_ = src_info;

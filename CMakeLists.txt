@@ -4,7 +4,7 @@ project(ros_image_processing)
 ## Compile as C++11, supported in ROS Kinetic and newer
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -std=c++11 -march=native")
 set(FreeImageLibPath "/usr/lib/x86_64-linux-gnu/libfreeimage-3.17.0.so")
-
+set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G -O0")  # enable cuda-gdb
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -68,6 +68,9 @@ ${CUDA_nppisu_LIBRARY}
 
 # link_directories(${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/lib/nvJPEG)
 
+cuda_add_library(undistort_cuda SHARED include/processors/undistort.cu)
+
+
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
     src/ros_image_processing.cpp
@@ -105,6 +108,7 @@ target_link_libraries(${PROJECT_NAME}
   ${FREEIMAGE_LIBRARIES}
   ${FreeImageLibPath}
   ${CUDA_npp_LIBRARY}
+    undistort_cuda
 )
 
 

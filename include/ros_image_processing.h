@@ -10,6 +10,7 @@
 
 #include "processors/resize.h"
 #include "processors/debayer.h"
+#include "processors/undistort.h"
 
 #include <Exceptions.h>
 #include <ImageIO.h>
@@ -28,6 +29,7 @@ class ImageProcCUDA{
 
   std::shared_ptr<ips::Resizer> img_resizer_;
   std::shared_ptr<ips::Debayer> img_debayer_;
+  std::shared_ptr<ips::Undistort> img_undistort_;
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
@@ -36,6 +38,7 @@ class ImageProcCUDA{
 
   ImageInfo src_info_;
   ImageInfo color_img_info_;
+  ImageInfo undistort_img_info_;
   ImageInfo resize_img_info_;
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& img);
