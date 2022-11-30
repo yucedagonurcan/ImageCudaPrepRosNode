@@ -7,6 +7,7 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CameraInfo.h>
 
 #include "processors/resize.h"
 #include "processors/debayer.h"
@@ -40,6 +41,15 @@ class ImageProcCUDA{
   ImageInfo color_img_info_;
   ImageInfo undistort_img_info_;
   ImageInfo resize_img_info_;
+
+  sensor_msgs::Image output_img_;
+
+  void* src_ptr_ = nullptr;
+  void* color_ptr_ = nullptr;
+  void* undistort_ptr_ = nullptr;
+  void* resized_ptr_ = nullptr;
+
+  bool collected_image_info = false;
 
   void imageCallback(const sensor_msgs::Image::ConstPtr& img);
 };

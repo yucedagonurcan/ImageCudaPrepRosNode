@@ -12,6 +12,8 @@ struct ImageInfo{
   int width;
   int height;
   int step;
+
+  int num_channels;
   std::string encoding;
 
   // Intrinsic Parameters
