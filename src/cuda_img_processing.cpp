@@ -101,7 +101,7 @@ void ImageProcCUDA::imageCallback( const sensor_msgs::Image::ConstPtr &img ) {
     exit( 1 );
   }
 
-  output_img_.header.frame_id = img->header.frame_id;
+  output_img_.header = img->header;
   output_img_.width = resize_img_info_.width;
   output_img_.height = resize_img_info_.height;
   output_img_.step = resize_img_info_.width * resize_img_info_.num_channels;

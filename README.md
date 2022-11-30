@@ -20,6 +20,16 @@ git clone https://github.com/yucedagonurcan/ImageCudaPrepRosNode.git
 catkin build cuda_img_processing --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
+## Benchmarks & Thoughts
+- I don't think this pipeline alone can make a drastic difference in terms of throughput and data shows that too:
+  - *Delay per image (CPU) = 0.055*
+  - *Delay per image (GPU) : 0.050*
+- The most important metric in this project can be freeing the CPU from this pipeline:
+  - *CPU usage ( CPU ): 26.5%*
+  - *CPU usage ( GPU ): 11.5%*
+  - I am pretty sure that we can further optimize this code too.
+
+
 ## Example run
 ![Example Run](materials/example_run.gif)
 
