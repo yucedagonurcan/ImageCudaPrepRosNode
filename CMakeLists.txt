@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ros_image_processing)
+project(cuda_img_processing)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -std=c++11 -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=native")
 set(FreeImageLibPath "/usr/lib/x86_64-linux-gnu/libfreeimage-3.17.0.so")
-set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G -O0")  # enable cuda-gdb
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -31,8 +31,8 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES cuda_imageprocessing
+  INCLUDE_DIRS include
+  LIBRARIES undistort_cuda
 #  CATKIN_DEPENDS roscpp sensor_msgs
 #  DEPENDS system_lib
 )
@@ -73,7 +73,7 @@ cuda_add_library(undistort_cuda SHARED include/processors/undistort.cu)
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-    src/ros_image_processing.cpp
+    src/cuda_img_processing.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -112,7 +112,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 
-add_executable(${PROJECT_NAME}_node src/ros_image_processing_node.cpp)
+add_executable(${PROJECT_NAME}_node src/cuda_img_processing_node.cpp)
 
 target_link_libraries(${PROJECT_NAME}_node
         ${PROJECT_NAME}

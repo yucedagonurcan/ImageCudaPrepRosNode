@@ -27,5 +27,12 @@ inline NppStatus CheckNPP(NppStatus status, const std::string func) {
   return status;
 }
 
+inline bool CheckCudaMalloc(bool status, const std::string func) {
+  if (!status)
+    ROS_ERROR("[CudaMalloc ERROR][%s] %d", func.c_str(), status);
+
+  return status;
+}
+
 } // namespace ips
 #endif//ROS_IMAGE_PROCESSING_INCLUDE_ERRORCHECK_H_

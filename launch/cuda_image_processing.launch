@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+
+    <arg name="enable/debayer"      default="true"/>
+    <arg name="enable/undistort"    default="true"/>
+    <arg name="enable/resize"       default="true"/>
+
+    <arg name="resize_ratio"        default="0.3f"/>
+
+    <arg name="input_topic"         default="/dash_center/image_raw"/>
+    <arg name="output_topic"        default="/dash_center/image"/>
+
+
+    <node pkg="cuda_img_processing" type="cuda_img_processing_node" name="cuda_img_proc">
+
+        <param name="enable/debayer"      value="$(arg enable/debayer)"/>
+        <param name="enable/undistort"    value="$(arg enable/undistort)"/>
+        <param name="enable/resize"       value="$(arg enable/resize)"/>
+    
+        <param name="resize_ratio"        value="$(arg resize_ratio)"/>
+    
+        <remap from="input/image_raw"     to="$(arg input_topic)"/>
+        <remap from="output/image_raw"    to="$(arg output_topic)"/>
+
+    </node>
+</launch>
